@@ -1,0 +1,14 @@
+# Python/Streamlit local artifacts
+.venv/
+venv/
+.env
+__pycache__/
+*.pyc
+
+# Streamlit local run outputs
+streamlit.out
+streamlit.pid
+
+# OS/editor
+.DS_Store
+.vscode/
