@@ -1,0 +1,45 @@
+============================================================
+DIWALI AIR QUALITY ANALYSIS - SUMMARY STATISTICS
+============================================================
+
+Data Range: 2025-10-12 06:49:25+00:00 to 2025-10-30 15:21:13+00:00
+Total Records: 43671
+Valid PM2.5 Readings: 43615
+Valid PM10 Readings: 43615
+
+Overall PM2.5 Statistics:
+count    43615.000000
+mean        19.253729
+std         27.678640
+min          1.800000
+25%          8.200000
+50%         12.100000
+75%         20.200000
+max        684.500000
+
+Overall PM10 Statistics:
+count    43615.000000
+mean        26.898913
+std         31.069986
+min          3.400000
+25%         13.700000
+50%         18.600000
+75%         29.800000
+max        781.700000
+
+PM Statistics by Period:
+                   PM2.5                      PM10              
+                    mean  median    max       mean median    max
+Period                                                          
+During Diwali  32.035204  12.900  684.5  40.715423   19.8  781.7
+Post-Diwali    16.307374  12.000  342.3  23.714691   18.3  371.8
+Pre-Diwali     23.088796  20.305   77.1  30.806389   26.9  122.3
+
+AQI Category Distribution:
+AQI_Category
+Good            37170
+Satisfactory     5172
+Moderate          542
+Very Poor         345
+Poor              223
+Severe            163
