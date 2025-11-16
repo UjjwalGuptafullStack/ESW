@@ -19,6 +19,12 @@ print("Preprocessing data...")
 df['created_at'] = pd.to_datetime(df['created_at'])
 df['Timestamp'] = df['created_at']
 
+# Filter out test data - only include data from Oct 18, 2025 onwards
+START_DATE_FILTER = pd.to_datetime('2025-10-18', utc=True)
+print(f"Filtering data from {START_DATE_FILTER.date()} onwards (excluding test runs)...")
+df = df[df['Timestamp'] >= START_DATE_FILTER].reset_index(drop=True)
+print(f"Records after filtering: {len(df)}")
+
 # Rename fields for clarity
 df['PM2.5'] = pd.to_numeric(df['field4'], errors='coerce')
 df['PM10'] = pd.to_numeric(df['field5'], errors='coerce')

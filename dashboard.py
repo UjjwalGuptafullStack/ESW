@@ -34,6 +34,10 @@ def load_data(csv_path: str) -> pd.DataFrame:
         df["Timestamp"] = pd.to_datetime(df["Timestamp"], errors="coerce", utc=True)
     else:
         raise ValueError("Expected a 'created_at' or 'Timestamp' column in CSV")
+    
+    # Filter out test data - only include data from Oct 18, 2025 onwards
+    START_DATE_FILTER = pd.to_datetime('2025-10-18', utc=True)
+    df = df[df["Timestamp"] >= START_DATE_FILTER].reset_index(drop=True)
 
     # Numeric conversions aligned with script.py
     def to_num(col):
@@ -88,6 +92,11 @@ with st.sidebar:
     df = load_data(DATA_PATH)
     min_ts = pd.to_datetime(df["Timestamp"].min())
     max_ts = pd.to_datetime(df["Timestamp"].max())
+    
+    # Enforce minimum date (post-filtering)
+    min_allowed = pd.to_datetime('2025-10-18', utc=True)
+    if min_ts < min_allowed:
+        min_ts = min_allowed
 
     # Default Diwali date from script.py
     diwali_default = pd.to_datetime("2025-10-20", utc=True)
@@ -99,6 +108,9 @@ with st.sidebar:
     window_days = st.slider("Show ± days around Diwali", min_value=1, max_value=14, value=7)
     smooth_win = st.slider("Smoothing window (hours)", 1, 24, 3)
     pm25_threshold = st.number_input("PM2.5 threshold (µg/m³)", min_value=10, max_value=200, value=60, step=5)
+    
+    # Data quality indicator
+    st.info(f"📊 Data filtered from Oct 18, 2025 onwards\n({len(df):,} records available)")
 
     # Global date filter
     st.subheader("Date range filter")
@@ -148,15 +160,41 @@ focus = work.loc[focus_mask].copy()
 st.title("🎇 Diwali Air Quality Insights Dashboard")
 st.markdown(
     """
-    This dashboard explores air quality data around Diwali using PM2.5, PM10, temperature, and humidity.
-    Use the controls on the left to focus on time windows and adjust parameters. Each section adds a piece to the story:
-
-    - What changed around Diwali?
-    - How did temperature and humidity influence particulate levels?
-    - When during the day are peaks most likely?
-    - How severe were conditions in terms of AQI categories?
+    ### Comprehensive Analysis of Particulate Matter During Diwali 2025
+    
+    This interactive dashboard analyzes air quality data collected during the Diwali festival period, focusing on PM2.5, PM10, 
+    temperature, and humidity measurements. The analysis excludes preliminary test data and covers the period from **October 18, 2025 onwards**.
+    
+    **🔍 Key Research Questions:**
+    - How did Diwali festivities impact air quality?
+    - What role did meteorological conditions play?
+    - When during the day were pollution peaks most severe?
+    - How quickly did air quality recover post-festival?
+    
+    **📊 Use the sidebar controls** to explore different time windows, adjust smoothing parameters, and set pollution thresholds.
     """
 )
+
+# Add methodology note
+with st.expander("📋 Methodology & Data Sources"):
+    st.markdown("""
+    **Data Collection Period:** October 18-30, 2025 (excluding test runs)
+    
+    **Measurement Parameters:**
+    - PM2.5 & PM10: Particulate matter concentrations (µg/m³)
+    - Temperature: Ambient air temperature (°C)
+    - Humidity: Relative humidity (%)
+    - Sampling frequency: Continuous monitoring
+    
+    **Analysis Methods:**
+    - Time-series analysis with configurable smoothing
+    - Period-based comparison (Pre/During/Post Diwali)
+    - AQI categorization per CPCB standards
+    - Correlation analysis between meteorological and pollution parameters
+    - Cumulative exposure assessment
+    
+    **Quality Control:** Negative values (-1) treated as missing data
+    """)
 
 # Key metrics
 colA, colB, colC, colD = st.columns(4)
@@ -407,8 +445,67 @@ st.markdown(
     """
 )
 
-# Downloads
-csv_bytes = work.to_csv(index=False).encode("utf-8")
-st.download_button("Download filtered data (CSV)", data=csv_bytes, file_name="filtered_air_quality.csv", mime="text/csv")
+# Report Downloads & Documentation
+st.header("📄 Reports & Documentation")
 
-st.success("Dashboard ready. Use the sidebar to guide the story around Diwali.")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.subheader("Data Export")
+    # Enhanced CSV export with metadata
+    export_metadata = f"""# Air Quality Analysis Export
+# Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+# Date Range: {work['Timestamp'].min().date()} to {work['Timestamp'].max().date()}
+# Total Records: {len(work):,}
+# Diwali Date: {DIWALI_DATE.date()}
+# PM2.5 Threshold: {pm25_threshold} µg/m³
+# Smoothing Window: {smooth_win} hours\n\n"""
+    
+    csv_with_metadata = export_metadata + work.to_csv(index=False)
+    csv_bytes = csv_with_metadata.encode("utf-8")
+    st.download_button(
+        "📊 Download Filtered Data (CSV)", 
+        data=csv_bytes, 
+        file_name=f"air_quality_analysis_{pd.Timestamp.now().strftime('%Y%m%d')}.csv", 
+        mime="text/csv",
+        help="Download current filtered dataset with analysis metadata"
+    )
+
+with col2:
+    st.subheader("Analysis Report")
+    # Check if PDF exists
+    pdf_path = "PM_Analysis_Diwali2025_Final_Report.pdf"
+    if os.path.exists(pdf_path):
+        with open(pdf_path, "rb") as pdf_file:
+            pdf_bytes = pdf_file.read()
+        st.download_button(
+            "📑 Download Full Analysis Report (PDF)",
+            data=pdf_bytes,
+            file_name="PM_Analysis_Diwali2025_Final_Report.pdf",
+            mime="application/pdf",
+            help="Comprehensive analysis report with detailed methodology and findings"
+        )
+        st.caption("📋 Complete technical analysis with statistical methods and conclusions")
+    else:
+        st.info("PDF report not available in current deployment")
+
+with col3:
+    st.subheader("Quick Insights")
+    # Generate summary statistics
+    period_summary = work.groupby('Period')[['PM2.5', 'PM10']].agg(['mean', 'median']).round(1)
+    summary_text = f"""**Key Findings:**
+    
+🎇 **During Diwali Period:**
+• PM2.5: {period_summary.loc['During Diwali', ('PM2.5', 'mean')]:.1f} µg/m³ (avg)
+• PM10: {period_summary.loc['During Diwali', ('PM10', 'mean')]:.1f} µg/m³ (avg)
+
+📈 **Pollution Increase:**
+• {((period_summary.loc['During Diwali', ('PM2.5', 'mean')] / period_summary.loc['Pre-Diwali', ('PM2.5', 'mean')] - 1) * 100):.0f}% PM2.5 increase vs Pre-Diwali
+• {((period_summary.loc['During Diwali', ('PM10', 'mean')] / period_summary.loc['Pre-Diwali', ('PM10', 'mean')] - 1) * 100):.0f}% PM10 increase vs Pre-Diwali
+
+🌅 **Recovery:**
+• Post-Diwali levels: {period_summary.loc['Post-Diwali', ('PM2.5', 'mean')]:.1f} µg/m³ PM2.5"""
+    
+    st.markdown(summary_text)
+
+st.success("🎯 Dashboard ready. Use the sidebar controls to explore different time periods and thresholds.")
