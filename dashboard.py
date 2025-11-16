@@ -101,21 +101,68 @@ with st.sidebar:
     # Default Diwali date from script.py
     diwali_default = pd.to_datetime("2025-10-20", utc=True)
     diwali_date = st.date_input(
-        "Diwali date", value=diwali_default.date(), min_value=min_ts.date(), max_value=max_ts.date()
+        "🎇 Diwali Date", 
+        value=diwali_default.date(), 
+        min_value=min_ts.date(), 
+        max_value=max_ts.date(),
+        help="📅 Set the Diwali reference date. This defines the periods:\n" +
+             "• Pre-Diwali: > 1 day before this date\n" +
+             "• During Diwali: ±1 day around this date\n" +
+             "• Post-Diwali: > 1 day after this date"
     )
     DIWALI_DATE = pd.to_datetime(str(diwali_date), utc=True)
 
-    window_days = st.slider("Show ± days around Diwali", min_value=1, max_value=14, value=7)
-    smooth_win = st.slider("Smoothing window (hours)", 1, 24, 3)
-    pm25_threshold = st.number_input("PM2.5 threshold (µg/m³)", min_value=10, max_value=200, value=60, step=5)
+    window_days = st.slider(
+        "📊 Focus Window (± days around Diwali)", 
+        min_value=1, max_value=14, value=7,
+        help="🔍 Controls the time window for detailed time-series plots.\n" +
+             "• Smaller values: Focus on immediate Diwali impact\n" +
+             "• Larger values: See broader seasonal trends\n" +
+             "• Recommended: 7-10 days for balanced view"
+    )
     
-    # Data quality indicator
-    st.info(f"📊 Data filtered from Oct 18, 2025 onwards\n({len(df):,} records available)")
+    smooth_win = st.slider(
+        "📈 Smoothing Window (hours)", 
+        1, 24, 3,
+        help="⚙️ Time-based rolling average for trend analysis:\n" +
+             "• 1-3 hours: See precise sensor readings and short spikes\n" +
+             "• 6-12 hours: Smooth out noise, show daily patterns\n" +
+             "• 24+ hours: Very smooth, long-term trends only\n" +
+             "• Lower values = more detail, higher = more general trends"
+    )
+    
+    pm25_threshold = st.number_input(
+        "🚨 PM2.5 Health Threshold (µg/m³)", 
+        min_value=10, max_value=200, value=60, step=5,
+        help="🏥 Air quality threshold for cumulative exposure analysis:\n" +
+             "• 30 µg/m³: WHO annual guideline\n" +
+             "• 60 µg/m³: India CPCB 'Satisfactory' limit\n" +
+             "• 90 µg/m³: 'Moderate' pollution level\n" +
+             "• Values above this contribute to health risk calculations"
+    )
+    
+    # Data quality indicator with more details
+    st.info(f"""
+📊 **Data Quality Summary:**
+• **Records:** {len(df):,} measurements (post-Oct 18, 2025)
+• **Coverage:** {(max_ts - min_ts).days} days of monitoring
+• **Sampling:** Continuous air quality measurements
+• **Parameters:** PM2.5, PM10, Temperature, Humidity
+• **QC:** Invalid readings (-1) excluded from analysis
+    """)
 
     # Global date filter
-    st.subheader("Date range filter")
+    st.subheader("📅 Analysis Date Range")
     start_date, end_date = st.date_input(
-        "Select date range", value=(min_ts.date(), max_ts.date()), min_value=min_ts.date(), max_value=max_ts.date()
+        "Select analysis period", 
+        value=(min_ts.date(), max_ts.date()), 
+        min_value=min_ts.date(), 
+        max_value=max_ts.date(),
+        help="🗓️ Choose the time period for analysis:\n" +
+             "• Include sufficient Pre-Diwali data (3+ days recommended)\n" +
+             "• Ensure Post-Diwali recovery period coverage\n" +
+             "• Broader ranges show seasonal context\n" +
+             "• Focused ranges highlight festival impact"
     )
 
 # Apply filters
@@ -206,8 +253,24 @@ colD.metric("Mean PM10", f"{work['PM10'].mean():.1f} µg/m³")
 st.divider()
 
 # 1) Time-Series Trend Analysis
-st.header("1) Time-Series Trends around Diwali")
-st.caption("Smoothed series shown where available; orange line marks Diwali.")
+st.header("1) 📈 Time-Series Trends around Diwali")
+with st.expander("📖 Understanding this analysis"):
+    st.markdown("""
+    **What this shows:** Raw sensor data and smoothed trends for PM2.5 and PM10 over time
+    
+    **How to interpret:**
+    - **Thin lines:** Actual sensor readings (more noise, precise values)
+    - **Thick lines:** Smoothed trends (controlled by smoothing window)
+    - **Orange dashed line:** Diwali reference date
+    - **Spikes:** Short-term pollution events (fireworks, local sources)
+    
+    **Key insights to look for:**
+    - Pollution buildup before/during Diwali
+    - Recovery patterns after festivities
+    - Impact of meteorological conditions
+    """)
+
+st.caption("💡 Adjust the smoothing window to balance detail vs. trends. Lower smoothing shows sensor precision, higher smoothing reveals patterns.")
 fig_ts = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
                        subplot_titles=("PM2.5 over time", "PM10 over time"))
 
@@ -254,8 +317,25 @@ st.markdown(
 st.divider()
 
 # 2) Temperature-PM Relationship
-st.header("2) Temperature vs PM relationship")
-st.caption("Explore how ambient temperature correlates with particulate matter.")
+st.header("2) 🌡️ Temperature vs PM Relationship")
+with st.expander("🧪 Scientific background"):
+    st.markdown("""
+    **Why this matters:** Temperature affects atmospheric stability and pollution dispersion
+    
+    **Expected patterns:**
+    - **Lower temperatures:** Often associated with stable air, poor dispersion → higher PM
+    - **Higher temperatures:** Better mixing, more convection → lower PM concentrations
+    - **Temperature inversions:** Warm air above cool air traps pollutants
+    
+    **Red trend line:** Shows overall correlation between temperature and particulate matter
+    
+    **What to look for:**
+    - Negative correlation: Higher temp → Lower PM (good dispersion)
+    - Positive correlation: May indicate specific source patterns
+    - Scattered points: Multiple factors affecting pollution
+    """)
+
+st.caption("🔬 Temperature is a key meteorological driver of air quality. The relationship helps explain pollution patterns.")
 
 def scatter_with_trend(df_in: pd.DataFrame, x: str, y: str, color: str = None, title: str = ""):
     fig = px.scatter(df_in, x=x, y=y, color=color, opacity=0.5, trendline=None)
@@ -280,7 +360,22 @@ else:
 st.divider()
 
 # 3) Humidity influence + correlation
-st.header("3) Humidity influence and correlation")
+st.header("3) 💧 Humidity Influence & Multi-Parameter Correlation")
+with st.expander("💡 Understanding humidity effects"):
+    st.markdown("""
+    **Humidity's role in air quality:**
+    - **High humidity:** Can lead to particle growth, reduced visibility, complex chemistry
+    - **Low humidity:** May increase dust resuspension, affect particle formation
+    - **Optimal range:** 40-60% typically associated with better air quality
+    
+    **Correlation matrix insights:**
+    - **Red colors:** Positive correlation (variables increase together)
+    - **Blue colors:** Negative correlation (one increases, other decreases)
+    - **Color intensity:** Strength of relationship
+    - **Values:** -1 (perfect negative) to +1 (perfect positive)
+    """)
+
+st.caption("🔍 The correlation matrix reveals how weather parameters interact with pollution levels.")
 valid_hum = work.dropna(subset=["Humidity_pct", "PM2.5"]) if {"Humidity_pct", "PM2.5"} <= set(work.columns) else pd.DataFrame()
 cols_corr = [c for c in ["PM2.5", "PM10", "Temp_C", "Humidity_pct"] if c in work.columns]
 row = st.columns((2, 2))
@@ -300,7 +395,22 @@ else:
 st.divider()
 
 # 4) Diurnal variation
-st.header("4) Diurnal variation in PM levels")
+st.header("4) 🕐 Diurnal (Daily) Pollution Patterns")
+with st.expander("⏰ Why timing matters"):
+    st.markdown("""
+    **Typical daily pollution patterns:**
+    - **Morning peak (6-9 AM):** Traffic, cooking, atmospheric stability
+    - **Evening peak (6-9 PM):** Rush hour, cooking, temperature inversions
+    - **Midnight-dawn:** Often lowest due to reduced activity
+    - **Afternoon dip:** Higher temperatures improve mixing
+    
+    **During Diwali period:**
+    - Evening hours may show extreme spikes from fireworks
+    - Late night elevated levels from continued celebrations
+    - Morning-after effects from residual particles
+    """)
+
+st.caption("📊 Hourly averages reveal when pollution peaks occur. This helps identify sources and plan protective measures.")
 hourly = work.groupby("hour")[[c for c in ["PM2.5", "PM10"] if c in work.columns]].mean().reset_index()
 fig_diurnal = go.Figure()
 if "PM2.5" in hourly:
@@ -313,7 +423,25 @@ st.plotly_chart(fig_diurnal, use_container_width=True)
 st.divider()
 
 # 5) AQI distribution
-st.header("5) AQI category distribution")
+st.header("5) 🚦 Air Quality Index (AQI) Health Categories")
+with st.expander("🏥 Health implications by category"):
+    st.markdown("""
+    **AQI Categories (based on PM2.5, Indian CPCB standards):**
+    
+    🟢 **Good (0-30 µg/m³):** Minimal health impact for all population groups
+    
+    🟡 **Satisfactory (31-60 µg/m³):** Acceptable for most people, sensitive individuals may experience minor issues
+    
+    🟠 **Moderate (61-90 µg/m³):** May cause breathing discomfort to sensitive people
+    
+    🔴 **Poor (91-120 µg/m³):** May cause breathing discomfort, especially for people with heart/lung disease
+    
+    🟣 **Very Poor (121-250 µg/m³):** May cause respiratory illness on prolonged exposure
+    
+    ⚫ **Severe (>250 µg/m³):** May cause serious health effects, emergency conditions
+    """)
+
+st.caption("💊 AQI categories translate technical measurements into health-relevant information for public awareness.")
 aqi_order = ["Good", "Satisfactory", "Moderate", "Poor", "Very Poor", "Severe"]
 aqi_counts = work["AQI_Category"].value_counts().reindex(aqi_order).fillna(0)
 colors = {
@@ -354,7 +482,27 @@ else:
 st.divider()
 
 # 7) Pre/During/Post Diwali comparison (boxplots)
-st.header("7) Diwali period comparison")
+st.header("7) 📊 Statistical Comparison: Pre/During/Post Diwali")
+with st.expander("📈 Reading the box plots"):
+    st.markdown("""
+    **Box plot components:**
+    - **Box:** Contains 50% of data (25th to 75th percentile)
+    - **Line in box:** Median value (50th percentile)
+    - **Whiskers:** Extend to reasonable data range
+    - **Dots:** Outliers (unusual high/low values)
+    
+    **Period definitions:**
+    - **Pre-Diwali:** More than 1 day before Diwali date
+    - **During Diwali:** ±1 day around Diwali date (3-day window)
+    - **Post-Diwali:** More than 1 day after Diwali date
+    
+    **What to compare:**
+    - Median levels (center lines) between periods
+    - Box heights (variability) in each period
+    - Outlier frequency (extreme pollution events)
+    """)
+
+st.caption("📋 Box plots provide robust statistical comparison, showing both typical levels and variability in each period.")
 period_data = work.dropna(subset=["PM2.5", "PM10"]) if {"PM2.5", "PM10"} <= set(work.columns) else work.copy()
 order = ["Pre-Diwali", "During Diwali", "Post-Diwali"]
 c1, c2 = st.columns(2)
@@ -380,7 +528,26 @@ if len(cols_corr) >= 2:
 st.divider()
 
 # 9) Cumulative exposure (AOT)
-st.header("9) Cumulative exposure above threshold")
+st.header("9) ☠️ Cumulative Health Risk Assessment")
+with st.expander("⚕️ Understanding cumulative exposure"):
+    st.markdown(f"""
+    **Why cumulative exposure matters:**
+    - Health effects depend on both concentration AND duration
+    - Brief high exposures + sustained moderate levels = significant risk
+    - WHO emphasizes cumulative dose for long-term health assessment
+    
+    **This analysis shows:**
+    - **Top plot:** When PM2.5 exceeded {pm25_threshold} µg/m³ (shaded red areas)
+    - **Bottom plot:** Running total of "excess exposure" above threshold
+    - **Steep rises:** Periods of significant health risk accumulation
+    
+    **Interpretation:**
+    - Plateau periods: Air quality at/below threshold
+    - Sharp increases: High-risk exposure windows
+    - Total area: Overall health burden during the period
+    """)
+
+st.caption(f"⚠️ Areas above {pm25_threshold} µg/m³ contribute to cumulative health risk. Steep rises indicate high-exposure periods.")
 if "PM2.5" in work:
     exposure = work.dropna(subset=["PM2.5"]).copy()
     exposure["Excess"] = (exposure["PM2.5"] - pm25_threshold).clip(lower=0)
@@ -491,21 +658,64 @@ with col2:
 
 with col3:
     st.subheader("Quick Insights")
-    # Generate summary statistics
-    period_summary = work.groupby('Period')[['PM2.5', 'PM10']].agg(['mean', 'median']).round(1)
-    summary_text = f"""**Key Findings:**
+    # Generate summary statistics with error handling
+    try:
+        period_summary = work.groupby('Period')[['PM2.5', 'PM10']].agg(['mean', 'median']).round(1)
+        
+        # Check if all required periods exist
+        required_periods = ['Pre-Diwali', 'During Diwali', 'Post-Diwali']
+        available_periods = period_summary.index.tolist()
+        
+        if all(period in available_periods for period in required_periods):
+            during_pm25 = period_summary.loc['During Diwali', ('PM2.5', 'mean')]
+            pre_pm25 = period_summary.loc['Pre-Diwali', ('PM2.5', 'mean')]
+            during_pm10 = period_summary.loc['During Diwali', ('PM10', 'mean')]
+            pre_pm10 = period_summary.loc['Pre-Diwali', ('PM10', 'mean')]
+            post_pm25 = period_summary.loc['Post-Diwali', ('PM2.5', 'mean')]
+            
+            pm25_increase = ((during_pm25 / pre_pm25 - 1) * 100) if pre_pm25 > 0 else 0
+            pm10_increase = ((during_pm10 / pre_pm10 - 1) * 100) if pre_pm10 > 0 else 0
+            
+            summary_text = f"""**Key Findings:**
     
 🎇 **During Diwali Period:**
-• PM2.5: {period_summary.loc['During Diwali', ('PM2.5', 'mean')]:.1f} µg/m³ (avg)
-• PM10: {period_summary.loc['During Diwali', ('PM10', 'mean')]:.1f} µg/m³ (avg)
+• PM2.5: {during_pm25:.1f} µg/m³ (avg)
+• PM10: {during_pm10:.1f} µg/m³ (avg)
 
 📈 **Pollution Increase:**
-• {((period_summary.loc['During Diwali', ('PM2.5', 'mean')] / period_summary.loc['Pre-Diwali', ('PM2.5', 'mean')] - 1) * 100):.0f}% PM2.5 increase vs Pre-Diwali
-• {((period_summary.loc['During Diwali', ('PM10', 'mean')] / period_summary.loc['Pre-Diwali', ('PM10', 'mean')] - 1) * 100):.0f}% PM10 increase vs Pre-Diwali
+• {pm25_increase:.0f}% PM2.5 increase vs Pre-Diwali
+• {pm10_increase:.0f}% PM10 increase vs Pre-Diwali
 
 🌅 **Recovery:**
-• Post-Diwali levels: {period_summary.loc['Post-Diwali', ('PM2.5', 'mean')]:.1f} µg/m³ PM2.5"""
-    
-    st.markdown(summary_text)
+• Post-Diwali levels: {post_pm25:.1f} µg/m³ PM2.5"""
+        else:
+            # Fallback when periods are missing
+            available_text = ", ".join(available_periods)
+            summary_text = f"""**Available Data:**
+            
+📊 **Periods Found:** {available_text}
+            
+💡 **Note:** Adjust the date range or Diwali date to ensure Pre/During/Post periods have sufficient data for comparison.
+            
+📈 **Current Stats:**
+• Mean PM2.5: {work['PM2.5'].mean():.1f} µg/m³
+• Mean PM10: {work['PM10'].mean():.1f} µg/m³
+• Total Records: {len(work):,}"""
+        
+        st.markdown(summary_text)
+        
+    except Exception as e:
+        st.error(f"Unable to generate insights: {str(e)[:100]}...")
+        st.info("💡 Try adjusting the date range or Diwali date to include all periods.")
 
-st.success("🎯 Dashboard ready. Use the sidebar controls to explore different time periods and thresholds.")
+st.success("""
+🎯 **Dashboard Ready!** Use these tips for effective analysis:
+
+🔧 **Controls:** Adjust smoothing (1-3h for detail, 6-12h for patterns), threshold (30-90 µg/m³), and date range
+
+📊 **Compare periods:** Use the Diwali date control to analyze different festival impact windows
+
+📈 **Export data:** Download filtered CSV with metadata or the complete PDF report for documentation
+
+💡 **Pro tip:** Lower smoothing shows sensor precision; higher smoothing reveals clearer trends
+""")
